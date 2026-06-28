@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BookOrbit → StoryGraph Sync</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222636;
+      --border: #2e3250;
+      --accent: #7c6af7;
+      --accent-dim: #5a4fc4;
+      --green: #3ecf8e;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --text: #e2e8f0;
+      --muted: #8892aa;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 900px;
+      margin: 0 auto 28px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .logo .orbit { color: var(--accent); }
+    .logo .arrow { color: var(--muted); }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    /* ── Status badges ── */
+    .status-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+
+    .badge.ok    { background: #0d2e20; border-color: #2a6049; color: var(--green); }
+    .badge.error { background: #2e1212; border-color: #6b2a2a; color: var(--red); }
+    .badge.warn  { background: #2e2412; border-color: #6b5a2a; color: var(--yellow); }
+
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── Books grid ── */
+    .books-grid { display: grid; gap: 10px; }
+
+    .book-row {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .book-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .book-meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .book-badge {
+      font-size: 0.7rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .progress-wrap {
+      margin-top: 8px;
+      grid-column: 1 / -1;
+    }
+
+    .progress-bar-bg {
+      background: var(--bg);
+      border-radius: 99px;
+      height: 5px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+      border-radius: 99px;
+      transition: width .4s ease;
+    }
+
+    .progress-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── Sync results ── */
+    .result-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+    .result-row:last-child { border-bottom: none; }
+
+    .result-icon { font-size: 1rem; }
+
+    .result-status {
+      margin-left: auto;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .result-status.success  { background: #0d2e20; color: var(--green); }
+    .result-status.unchanged{ background: var(--surface2); color: var(--muted); }
+    .result-status.not_found{ background: #2e2412; color: var(--yellow); }
+    .result-status.failed,
+    .result-status.error,
+    .result-status.auth_error { background: #2e1212; color: var(--red); }
+
+    /* ── Logs ── */
+    .log-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      height: 220px;
+      overflow-y: auto;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.75rem;
+      line-height: 1.6;
+    }
+
+    .log-line { display: flex; gap: 10px; }
+    .log-time { color: var(--muted); flex-shrink: 0; }
+    .log-level-INFO    { color: var(--accent); }
+    .log-level-WARNING { color: var(--yellow); }
+    .log-level-ERROR   { color: var(--red); }
+
+    /* ── Settings ── */
+    .settings-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="url"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: var(--accent); }
+
+    /* ── Buttons ── */
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 8px 18px;
+      transition: opacity .15s, background .15s;
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-dim); }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) { background: var(--border); }
+
+    .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 0;
+      font-size: 0.85rem;
+      margin-bottom: -1px;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 0.85rem;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
+      z-index: 99;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { border-color: var(--green); color: var(--green); }
+    #toast.error   { border-color: var(--red);   color: var(--red); }
+
+    /* ── Util ── */
+    .empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 20px 0; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .flex-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .mt-2 { margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="orbit">BookOrbit</span>
+    <span class="arrow">→</span>
+    <span>StoryGraph</span>
+  </div>
+  <div class="header-actions">
+    {% if auth_enabled %}
+    <a href="/logout"><button class="btn-secondary btn-sm">Logout</button></a>
+    {% endif %}
+  </div>
+</header>
+
+<main>
+  <!-- Status -->
+  <div class="card">
+    <div class="flex-between">
+      <div class="status-row" id="status-badges">
+        <span class="badge warn"><span class="dot"></span> Loading…</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary btn-sm" onclick="refreshStatus()">↻ Refresh</button>
+        <button class="btn-primary" id="sync-btn" onclick="triggerSync()">⟳ Sync Now</button>
+      </div>
+    </div>
+    <div id="poll-info" class="mt-2" style="font-size:0.78rem;color:var(--muted)"></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="card" style="padding-bottom: 0">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('books', this)">In Progress</button>
+      <button class="tab-btn" onclick="switchTab('results', this)">Last Sync</button>
+      <button class="tab-btn" onclick="switchTab('logs', this)">Logs</button>
+      <button class="tab-btn" onclick="switchTab('settings', this)">Settings</button>
+    </div>
+
+    <!-- Books tab -->
+    <div id="tab-books" class="tab-pane active" style="padding-bottom:20px">
+      <div class="books-grid" id="books-list">
+        <div class="empty">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Results tab -->
+    <div id="tab-results" class="tab-pane" style="padding-bottom:20px">
+      <div id="results-list">
+        <div class="empty">No sync run yet — click "Sync Now".</div>
+      </div>
+    </div>
+
+    <!-- Logs tab -->
+    <div id="tab-logs" class="tab-pane" style="padding-bottom:20px">
+      <div class="flex-between" style="margin-bottom:8px">
+        <span style="font-size:0.78rem;color:var(--muted)">Live log (last 300 entries)</span>
+        <button class="btn-secondary btn-sm" onclick="loadLogs()">↻ Refresh</button>
+      </div>
+      <div class="log-box" id="log-box"></div>
+    </div>
+
+    <!-- Settings tab -->
+    <div id="tab-settings" class="tab-pane" style="padding-bottom:20px">
+      <form id="settings-form" onsubmit="saveSettings(event)">
+        <div class="settings-grid">
+          <div>
+            <label class="field-label">BookOrbit URL</label>
+            <input type="url" name="BOOKORBIT_URL" placeholder="http://localhost:3000" />
+          </div>
+          <div>
+            <label class="field-label">BookOrbit Username</label>
+            <input type="text" name="BOOKORBIT_USERNAME" placeholder="your-username" autocomplete="off" />
+          </div>
+          <div>
+            <label class="field-label">BookOrbit Password</label>
+            <input type="password" name="BOOKORBIT_PASSWORD" placeholder="leave blank to keep existing" autocomplete="new-password" />
+          </div>
+          <hr class="divider" />
+          <div>
+            <label class="field-label">StoryGraph Session Cookie (<code>_storygraph_session</code>)</label>
+            <input type="text" name="STORYGRAPH_SESSION" placeholder="leave blank to keep existing" autocomplete="off" />
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">
+              Log into <a href="https://app.thestorygraph.com" target="_blank" style="color:var(--accent)">app.thestorygraph.com</a>,
+              open DevTools → Application → Cookies → copy <code>_storygraph_session</code>
+            </div>
+          </div>
+          <div>
+            <label class="field-label">StoryGraph Remember Token (<code>remember_user_token</code>)</label>
+            <input type="text" name="STORYGRAPH_REMEMBER_TOKEN" placeholder="leave blank to keep existing" autocomplete="off" />
+          </div>
+          <div>
+            <button type="submit" class="btn-primary">Save Settings</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+  let lastResults = [];
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'logs') loadLogs();
+    if (name === 'results') renderResults();
+    if (name === 'settings') loadSettings();
+  }
+
+  // ── Status ────────────────────────────────────────────────────────────────
+  async function refreshStatus() {
+    try {
+      const data = await fetchJSON('/api/status');
+      renderStatus(data);
+      renderBooks(data.books || [], data.last_synced || {});
+    } catch (e) {
+      showToast('Failed to fetch status', 'error');
+    }
+  }
+
+  function renderStatus(data) {
+    const badges = document.getElementById('status-badges');
+    const boBadge = data.bo_ok
+      ? '<span class="badge ok"><span class="dot"></span> BookOrbit connected</span>'
+      : '<span class="badge error"><span class="dot"></span> BookOrbit offline</span>';
+    const sgBadge = data.sg_ok
+      ? '<span class="badge ok"><span class="dot"></span> StoryGraph session set</span>'
+      : '<span class="badge warn"><span class="dot"></span> StoryGraph not configured</span>';
+    badges.innerHTML = boBadge + sgBadge;
+
+    const pollEl = document.getElementById('poll-info');
+    pollEl.textContent = `Auto-sync every ${data.poll_interval}s · threshold ${data.sync_threshold}% change`;
+  }
+
+  function renderBooks(books, lastSynced) {
+    const el = document.getElementById('books-list');
+    if (!books.length) {
+      el.innerHTML = '<div class="empty">No books in progress on BookOrbit.</div>';
+      return;
+    }
+    el.innerHTML = books.map(b => {
+      const syncedPct = lastSynced[b.title] != null ? lastSynced[b.title].toFixed(1) : null;
+      const typeLabel = b.is_audio ? 'audio' : 'ebook';
+      return `
+        <div class="book-row">
+          <div>
+            <div class="book-title">${esc(b.title)}</div>
+            <div class="book-meta">${esc(b.author || '—')}${syncedPct !== null ? ` · last synced ${syncedPct}%` : ''}</div>
+          </div>
+          <span class="book-badge">${typeLabel}</span>
+          <div class="progress-wrap">
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width:${b.progress_percent}%"></div>
+            </div>
+            <div class="progress-label">${b.progress_percent}%</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Sync ──────────────────────────────────────────────────────────────────
+  async function triggerSync() {
+    const btn = document.getElementById('sync-btn');
+    btn.disabled = true;
+    btn.textContent = 'Syncing…';
+    try {
+      const data = await fetchJSON('/api/sync', { method: 'POST' });
+      lastResults = data.results || [];
+      showToast(`Sync done: ${data.synced}/${data.total} pushed`, 'success');
+      // Switch to results tab
+      document.querySelectorAll('.tab-btn')[1].click();
+      await refreshStatus();
+    } catch (e) {
+      showToast('Sync failed: ' + (e.message || e), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⟳ Sync Now';
+    }
+  }
+
+  function renderResults() {
+    const el = document.getElementById('results-list');
+    if (!lastResults.length) {
+      el.innerHTML = '<div class="empty">No sync run yet — click "Sync Now".</div>';
+      return;
+    }
+    el.innerHTML = lastResults.map(r => {
+      const icons = { success: '✅', unchanged: '⏸', not_found: '🔍', failed: '❌', error: '⚠️', auth_error: '🔐', no_sg_session: '⚙️' };
+      const icon = icons[r.status] || '•';
+      const pctStr = r.progress_percent != null ? ` · ${r.progress_percent}%` : '';
+      return `
+        <div class="result-row">
+          <span class="result-icon">${icon}</span>
+          <span>${esc(r.title)}${pctStr}</span>
+          <span class="result-status ${r.status}">${r.status.replace(/_/g,' ')}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Logs ──────────────────────────────────────────────────────────────────
+  async function loadLogs() {
+    try {
+      const data = await fetchJSON('/api/logs');
+      const box = document.getElementById('log-box');
+      const wasAtBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 5;
+      box.innerHTML = (data.logs || []).map(l =>
+        `<div class="log-line"><span class="log-time">${esc(l.time)}</span><span class="log-level-${l.level}">${esc(l.level.slice(0,4))}</span><span>${esc(l.msg)}</span></div>`
+      ).join('') || '<div class="empty">No logs yet.</div>';
+      if (wasAtBottom) box.scrollTop = box.scrollHeight;
+    } catch {}
+  }
+
+  // ── Settings ──────────────────────────────────────────────────────────────
+  async function loadSettings() {
+    try {
+      const data = await fetchJSON('/api/settings');
+      const form = document.getElementById('settings-form');
+      for (const [k, v] of Object.entries(data)) {
+        const el = form.querySelector(`[name="${k}"]`);
+        if (el && v && v !== 'set') el.value = v;
+        else if (el && v === 'set') el.placeholder = '(already set — leave blank to keep)';
+      }
+    } catch {}
+  }
+
+  async function saveSettings(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = {};
+    for (const el of form.elements) {
+      if (el.name && el.value.trim()) data[el.name] = el.value.trim();
+    }
+    try {
+      await fetchJSON('/api/settings', { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } });
+      showToast('Settings saved', 'success');
+      await refreshStatus();
+    } catch (err) {
+      showToast('Failed to save: ' + err.message, 'error');
+    }
+  }
+
+  // ── Utils ─────────────────────────────────────────────────────────────────
+  async function fetchJSON(url, opts = {}) {
+    const r = await fetch(url, opts);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(j.error || `HTTP ${r.status}`);
+    }
+    return r.json();
+  }
+
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  let _toastTimer;
+  function showToast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show ' + type;
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => el.className = '', 3500);
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  refreshStatus();
+  setInterval(refreshStatus, 30_000);
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+services:
+  bookorbit-storygraph-sync:
+    image: ghcr.io/dukko/bookorbit-storygraph-sync:latest
+    # Or build locally:
+    # build: .
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "5466:8080"
+    environment:
+      # ── BookOrbit ─────────────────────────────────────────────────────────
+      BOOKORBIT_URL: http://localhost:3000       # URL of your BookOrbit instance
+      BOOKORBIT_USERNAME: your-username
+      BOOKORBIT_PASSWORD: your-password
+
+      # ── StoryGraph ────────────────────────────────────────────────────────
+      # Get these from: app.thestorygraph.com → DevTools → Application → Cookies
+      STORYGRAPH_SESSION: ""
+      STORYGRAPH_REMEMBER_TOKEN: ""
+
+      # ── Sync behaviour ────────────────────────────────────────────────────
+      POLL_INTERVAL: "600"          # seconds between automatic syncs (default 10 min)
+      SYNC_THRESHOLD_PERCENT: "0.5" # minimum % change to trigger a push (avoids duplicates)
+
+      # ── Web UI auth (optional) ────────────────────────────────────────────
+      # UI_PASSWORD: ""             # set to enable login page
+      # UI_USERNAME: admin          # default username if UI_PASSWORD is set
+
+      PORT: "8080"
+
+    # If BookOrbit runs in the same Docker network, use network_mode: host
+    # or connect both to a shared network instead of using localhost above.
+    # network_mode: host
