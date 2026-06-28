@@ -131,7 +131,7 @@ def _bo_login() -> str | None:
         return None
     try:
         r = req.post(
-            f"{url}/api/auth/login",
+            f"{url}/api/v1/auth/login",
             json={"username": username, "password": password},
             timeout=10,
         )
@@ -168,7 +168,7 @@ def _bo_get(path: str, retry: bool = True):
     if not token:
         raise RuntimeError("No BookOrbit token available")
     r = req.get(
-        f"{cfg('BOOKORBIT_URL')}/api{path}",
+        f"{cfg('BOOKORBIT_URL')}/api/v1{path}",
         headers={"Authorization": f"Bearer {token}"},
         timeout=10,
     )
@@ -185,7 +185,7 @@ def _bo_post(path: str, body: dict, retry: bool = True):
     if not token:
         raise RuntimeError("No BookOrbit token available")
     r = req.post(
-        f"{cfg('BOOKORBIT_URL')}/api{path}",
+        f"{cfg('BOOKORBIT_URL')}/api/v1{path}",
         json=body,
         headers={"Authorization": f"Bearer {token}"},
         timeout=10,
