@@ -309,8 +309,21 @@ class StoryGraphClient:
         resp = self._get("/")
         return "sign_in" not in resp.url
 
+    _TITLE_NOISE = re.compile(
+        r'\s*[\(\[].*?[\)\]]'           # anything in parens/brackets: (Unabridged), [Audiobook]
+        r'|\s*:\s*(A |An |The )?'       # subtitle separator after colon
+        r'(?:unabridged|abridged|audiobook|a novel|a memoir)'
+        r'.*$',
+        re.IGNORECASE,
+    )
+
+    @staticmethod
+    def _clean_title(title: str) -> str:
+        return StoryGraphClient._TITLE_NOISE.sub("", title).strip()
+
     def search_book(self, title: str, author: str) -> str | None:
-        query = req.utils.quote(f"{title} {author}".strip())
+        clean = self._clean_title(title)
+        query = req.utils.quote(f"{clean} {author}".strip())
         resp = self._get(f"/browse?search_term={query}")
         if resp.status_code != 200:
             return None
@@ -323,9 +336,9 @@ class StoryGraphClient:
         if link:
             m = re.search(r"/books/([^/?]+)", link.get("href", ""))
             if m:
-                logger.info("Found '%s' on StoryGraph → id=%s", title, m.group(1))
+                logger.info("Found '%s' on StoryGraph → id=%s", clean, m.group(1))
                 return m.group(1)
-        logger.warning("No StoryGraph result for '%s'", title)
+        logger.warning("No StoryGraph result for '%s' (searched: '%s')", title, clean)
         return None
 
     def ensure_currently_reading(self, book_id: str):
