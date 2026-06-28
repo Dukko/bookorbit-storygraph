@@ -210,7 +210,6 @@ def get_bo_in_progress() -> list[dict]:
     while True:
         body = {
             "pagination": {"page": page, "pageSize": 50},
-            "sort": {"field": "title", "direction": "asc"},
         }
         data = _bo_post("/books/query", body).json()
         items = data.get("items", [])
