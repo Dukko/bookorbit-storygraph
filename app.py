@@ -197,50 +197,49 @@ def _bo_post(path: str, body: dict, retry: bool = True):
     return r
 
 
+_AUDIO_FORMATS = {"m4b", "mp3", "aax", "flac", "ogg", "opus", "m4a"}
+
+
 def get_bo_in_progress() -> list[dict]:
     """
-    Query BookOrbit for all in-progress books and return normalised dicts.
-    Uses POST /books/query with readProgress: isInProgress filter.
-    Then fetches per-book audio or file progress for the exact percentage.
+    Fetch all BookOrbit books (paginated) and return those with readStatus.status == "reading".
+    Progress and audio flag are included in the listing — no per-book calls needed.
     """
-    body = {
-        "rules": [
-            {"field": "readProgress", "operator": "isInProgress", "value": None}
-        ],
-        "pagination": {"page": 1, "pageSize": 200},
-        "sort": {"field": "title", "direction": "asc"},
-    }
-    resp = _bo_post("/books/query", body)
-    data = resp.json()
-    items = data.get("items", []) or data.get("books", []) or (data if isinstance(data, list) else [])
+    all_items: list[dict] = []
+    page = 0
+    while True:
+        body = {
+            "pagination": {"page": page, "pageSize": 50},
+            "sort": {"field": "title", "direction": "asc"},
+        }
+        data = _bo_post("/books/query", body).json()
+        items = data.get("items", [])
+        all_items.extend(items)
+        if not items or len(all_items) >= data.get("total", 0):
+            break
+        page += 1
 
     books = []
-    for item in items:
+    for item in all_items:
+        read_status = item.get("readStatus") or {}
+        if read_status.get("status") != "reading":
+            continue
+
         book_id = item.get("id")
         title = (item.get("title") or "").strip()
         if not title or not book_id:
             continue
 
         authors = item.get("authors") or []
-        author = ", ".join(a.get("name", "") for a in authors if a.get("name"))
+        author = ", ".join(a for a in authors if a)
 
-        is_audio = bool(item.get("audioMetadata"))
-        pct = 0.0
+        pct = float(item.get("readingProgress") or 0)
 
-        try:
-            if is_audio:
-                pr = _bo_get(f"/books/{book_id}/audio-progress")
-                ap = pr.json()
-                if ap:
-                    pct = float(ap.get("percentage") or 0)
-            else:
-                pr = _bo_get(f"/books/{book_id}/progress")
-                prog_list = pr.json()
-                if prog_list:
-                    # Take the highest percentage across all files
-                    pct = max(float(p.get("percentage") or 0) for p in prog_list)
-        except Exception as e:
-            logger.warning("Could not fetch progress for '%s' (id=%s): %s", title, book_id, e)
+        files = item.get("files") or []
+        is_audio = any(
+            f.get("role") == "primary" and f.get("format") in _AUDIO_FORMATS
+            for f in files
+        )
 
         books.append({
             "id": book_id,
