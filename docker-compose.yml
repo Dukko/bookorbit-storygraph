@@ -10,21 +10,21 @@ services:
       - "5466:8080"
     environment:
       # ── BookOrbit ─────────────────────────────────────────────────────────
-      BOOKORBIT_URL: http://localhost:3000       # URL of your BookOrbit instance
-      BOOKORBIT_USERNAME: your-username
-      BOOKORBIT_PASSWORD: your-password
+      BOOKORBIT_URL: http://192.168.1.223:6060       # URL of your BookOrbit instance
+      BOOKORBIT_USERNAME: admin
+      BOOKORBIT_PASSWORD: capZB*bJp!Q2
 
       # ── StoryGraph ────────────────────────────────────────────────────────
       # Get these from: app.thestorygraph.com → DevTools → Application → Cookies
-      STORYGRAPH_SESSION: ""
-      STORYGRAPH_REMEMBER_TOKEN: ""
+      STORYGRAPH_SESSION: "a8%2BI81%2FFvR2U5Ns%2FgcI4WFuSOfG77Htw7RZ9jTlXeR7KxWvn%2Bo8nYgRSotosFBy80kY3Zq608hIRE3NNJkknbTW0ALiAIjvJmG4xhNg0RfdKh4NChVpfR56Ki3reIL3NnUh9bhwVGnQp1mhLiKpHj7atEHcbVJAsw9Oa9fhkDgLAa0F86u3pGzyqfiyVBVGsez4LPJgRzAkwAUjhoARe9fvr8xRXVl%2B2vRDMr6WTM0H6tT3z8YrKrffUQcN7KY%2FRh8esq10mvufl7ooe9ni98Us8dt%2FNSREZ3kja3HI0H8D%2FzpDcxLnhs9mtSy9r44uPXm34P4YJUgaJYY06bwdnSNr304J1UJlxo84kP5grC8QimlHBvjlPeO0f84F13F%2FvvGvjMspyP%2FBCrHVX8vVUp78U%2F8W%2BKbkck%2FsVSRVRC2B3bV%2B3vxXl6giH8AjctNg68n9gTKbd0GoW3kqmxBl6twekevDkEwXLEGC8FVtg1nJhVU%2FzcS1NpALzMDci7qaNV%2F3Eh822RCB2pqNPxF3ny8gfNy18J2gaave4N55%2BS7RP--MHgSUuzjdR4hc6TA--bwWDYyCr6cEZwMo4VCduJQ%3D%3D"
+      STORYGRAPH_REMEMBER_TOKEN: "eyJfcmFpbHMiOnsibWVzc2FnZSI6Ilcxc2lZV000TkRjeE5UUXRaall6WVMwME9HSmhMV0kyTWpNdFlqVTFPR0kzWVdJNU5tVTNJbDBzSWlReVlTUXhNU1J0Tkd0NlJWRlZhRlJXUkU5cVMxRlllV1ZCVUUxbElpd2lNVGMzTnprNE9ERTBNQzQwTkRJd05UTTRJbDA9IiwiZXhwIjoiMjA0Ni0wNS0wNVQxMzozNTo0MC40NDJaIiwicHVyIjoiY29va2llLnJlbWVtYmVyX3VzZXJfdG9rZW4ifX0%3D--830594524e98559ca8a989fa7aea76b4fea3347e"
 
       # ── Sync behaviour ────────────────────────────────────────────────────
       POLL_INTERVAL: "600"          # seconds between automatic syncs (default 10 min)
       SYNC_THRESHOLD_PERCENT: "0.5" # minimum % change to trigger a push (avoids duplicates)
 
       # ── Web UI auth (optional) ────────────────────────────────────────────
-      # UI_PASSWORD: ""             # set to enable login page
+      # UI_PASSWORD: "capZB*bJp!Q2"             # set to enable login page
       # UI_USERNAME: admin          # default username if UI_PASSWORD is set
 
       PORT: "8080"

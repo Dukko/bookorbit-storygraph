@@ -203,7 +203,8 @@ _AUDIO_FORMATS = {"m4b", "mp3", "aax", "flac", "ogg", "opus", "m4a"}
 def get_bo_in_progress() -> list[dict]:
     """
     Fetch all BookOrbit books (paginated) and return those with readStatus.status == "reading".
-    Progress and audio flag are included in the listing — no per-book calls needed.
+    Progress is fetched from the dedicated endpoint per book to get real-time data
+    (the listing's readingProgress field is stale after a reading session).
     """
     all_items: list[dict] = []
     page = 0
@@ -229,16 +230,37 @@ def get_bo_in_progress() -> list[dict]:
         if not title or not book_id:
             continue
 
+        # authors is [{id, name, sortName}, ...] — extract .name
         authors = item.get("authors") or []
-        author = ", ".join(a for a in authors if a)
-
-        pct = float(item.get("readingProgress") or 0)
+        author = ", ".join(
+            a.get("name", "") for a in authors
+            if isinstance(a, dict) and a.get("name")
+        )
 
         files = item.get("files") or []
         is_audio = any(
-            f.get("role") == "primary" and f.get("format") in _AUDIO_FORMATS
+            f.get("role") == "primary" and (f.get("format") or "").lower() in _AUDIO_FORMATS
             for f in files
         )
+
+        # Fetch real-time progress from the dedicated endpoint.
+        # readingProgress in the listing is a snapshot that doesn't update
+        # until the next library scan, so it misses recent sessions.
+        pct = 0.0
+        try:
+            if is_audio:
+                pr = _bo_get(f"/books/{book_id}/audio-progress")
+                ap = pr.json()
+                if ap:
+                    pct = float(ap.get("percentage") or 0)
+            else:
+                pr = _bo_get(f"/books/{book_id}/progress")
+                prog_list = pr.json()
+                if prog_list:
+                    pct = max((float(p.get("percentage") or 0) for p in prog_list), default=0.0)
+        except Exception as e:
+            logger.warning("Could not fetch live progress for '%s' (id=%s): %s — using listing value", title, book_id, e)
+            pct = float(item.get("readingProgress") or 0)
 
         books.append({
             "id": book_id,
